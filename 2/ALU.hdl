@@ -1,0 +1,89 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/2/ALU.hdl
+/**
+ * ALU (Arithmetic Logic Unit):
+ * Computes out = one of the following functions:
+ *                0, 1, -1,
+ *                x, y, !x, !y, -x, -y,
+ *                x + 1, y + 1, x - 1, y - 1,
+ *                x + y, x - y, y - x,
+ *                x & y, x | y
+ * on the 16-bit inputs x, y,
+ * according to the input bits zx, nx, zy, ny, f, no.
+ * In addition, computes the two output bits:
+ * if (out == 0) zr = 1, else zr = 0
+ * if (out < 0)  ng = 1, else ng = 0
+ */
+// Implementation: Manipulates the x and y inputs
+// and operates on the resulting values, as follows:
+// if (zx == 1) sets x = 0        // 16-bit constant
+// if (nx == 1) sets x = !x       // bitwise not
+// if (zy == 1) sets y = 0        // 16-bit constant
+// if (ny == 1) sets y = !y       // bitwise not
+// if (f == 1)  sets out = x + y  // integer 2's complement addition
+// if (f == 0)  sets out = x & y  // bitwise and
+// if (no == 1) sets out = !out   // bitwise not
+
+CHIP ALU {
+    IN  
+        x[16], y[16],  // 16-bit inputs        
+        zx, // zero the x input?
+        nx, // negate the x input?
+        zy, // zero the y input?
+        ny, // negate the y input?
+        f,  // compute (out = x + y) or (out = x & y)?
+        no; // negate the out output?
+    OUT 
+        out[16], // 16-bit output
+        zr,      // if (out == 0) equals 1, else 0
+        ng;      // if (out < 0)  equals 1, else 0
+
+    PARTS:
+    //// first, handle zeroing x
+Not(in=zx, out=notZX);
+And16(a=x, b[0]= notZX, b[1]= notZX, b[2]= notZX, b[3]= notZX, b[4]= notZX, b[5]= notZX, b[6]= notZX, b[7]= notZX, b[8]= notZX, b[9]= notZX, b[10]= notZX, b[11]= notZX, b[12]= notZX, b[13]= notZX, b[14]= notZX, b[15]= notZX, out=x1);
+
+////net, handle negating x
+Not16(in=x1, out=notX1);
+And16(a= notX1, b[0]= nx, b[1]= nx, b[2]= nx, b[3]= nx, b[4]= nx, b[5]= nx, b[6]= nx, b[7]= nx, b[8]= nx, b[9]= nx, b[10]= nx, b[11]= nx, b[12]= nx, b[13]= nx, b[14]= nx, b[15]= nx, out=x11);
+Not(in=nx, out=NotNX);
+And16(a=x1, b[0]= NotNX, b[1]= NotNX, b[2]= NotNX, b[3]= NotNX, b[4]= NotNX, b[5]= NotNX, b[6]= NotNX, b[7]= NotNX, b[8]= NotNX, b[9]= NotNX, b[10]= NotNX, b[11]= NotNX, b[12]= NotNX, b[13]= NotNX, b[14]= NotNX, b[15]= NotNX, out=x12);
+Or16(a=x11, b=x12, out=x2);
+
+//// zeroing y?
+Not(in=zy, out=notZY);
+And16(a=y, b[0]= notZY, b[1]= notZY, b[2]= notZY, b[3]= notZY, b[4]= notZY, b[5]= notZY, b[6]= notZY, b[7]= notZY, b[8]= notZY, b[9]= notZY, b[10]= notZY, b[11]= notZY, b[12]= notZY, b[13]= notZY, b[14]= notZY, b[15]= notZY, out=y1);
+
+////negating y?
+Not16(in=y1, out=notY1);
+And16(a= notY1, b[0]= ny, b[1]= ny, b[2]= ny, b[3]= ny, b[4]= ny, b[5]= ny, b[6]= ny, b[7]= ny, b[8]= ny, b[9]= ny, b[10]= ny, b[11]= ny, b[12]= ny, b[13]= ny, b[14]= ny, b[15]= ny, out=y11);
+Not(in=ny, out=notNY);
+And16(a=y1, b[0]= notNY, b[1]= notNY, b[2]= notNY, b[3]= notNY, b[4]= notNY, b[5]= notNY, b[6]= notNY, b[7]= notNY, b[8]= notNY, b[9]= notNY, b[10]= notNY, b[11]= notNY, b[12]= notNY, b[13]= notNY, b[14]= notNY, b[15]= notNY, out=y12);
+Or16(a=y11, b=y12, out=y2);
+
+////adding and anding, then setting based on f
+Not(in=f, out=notF);
+Add16(a=x2, b=y2, out=addedOutput);
+And16(a=x2, b=y2, out=andedOutput);
+And16(a=addedOutput, b[0]=f, b[1]=f, b[2]=f, b[3]=f, b[4]=f, b[5]=f, b[6]=f, b[7]=f, b[8]=f, b[9]=f, b[10]=f, b[11]=f, b[12]=f, b[13]=f, b[14]=f, b[15]=f, out=cleanedAddedCoutput);
+And16(a= andedOutput, b[0]= notF, b[1]= notF, b[2]= notF, b[3]= notF, b[4]= notF, b[5]= notF, b[6]= notF, b[7]= notF, b[8]= notF, b[9]= notF, b[10]= notF, b[11]= notF, b[12]= notF, b[13]= notF, b[14]= notF, b[15]= notF, out=cleanedAndedCoutput);
+Or16(a= cleanedAddedCoutput, b= cleanedAndedCoutput, out=outFinal);
+
+////not output
+Not16(in= outFinal, out= outNotFinal);
+And16(a= outNotFinal, b[0]= no, b[1]= no, b[2]= no, b[3]= no, b[4]= no, b[5]= no, b[6]= no, b[7]= no, b[8]= no, b[9]= no, b[10]= no, b[11]= no, b[12]= no, b[13]= no, b[14]= no, b[15]= no, out=outNotFinal1);
+Not(in= no, out=notNo);
+And16(a= outFinal, b[0]= notNo, b[1]= notNo, b[2]= notNo, b[3]= notNo, b[4]= notNo, b[5]= notNo, b[6]= notNo, b[7]= notNo, b[8]= notNo, b[9]= notNo, b[10]= notNo, b[11]= notNo, b[12]= notNo, b[13]= notNo, b[14]= notNo, b[15]= notNo, out= outNotFinal2);
+Or16(a= outNotFinal1, b= outNotFinal2, out=outLast);
+Or16(a= outLast, b[0..15]=false, out=out);
+////handle ng
+Mux16(a= outLast, b[0..15]=true, sel=false, out[15]=ng);
+////handle zr
+Mux16(a= outLast, b[0..15]=true, sel=false, out[0]=out0, out[1]=out1, out[2]=out2, out[3]=out3, out[4]=out4, out[5]=out5, out[6]=out6, out[7]=out7, out[8]=out8, out[9]=out9, out[10]=out10, out[11]=out11, out[12]=out12, out[13]=out13, out[14]=out14, out[15]=out15);
+Or8Way(in[0]= out0, in[1]= out1, in[2]= out2, in[3]= out3, in[4]= out4, in[5]= out5, in[6]= out6, in[7]= out7, out=zr1);
+Or8Way(in[0]= out8, in[1]= out9, in[2]= out10, in[3]= out11, in[4]= out12, in[5]= out13, in[6]= out14, in[7]= out15, out=zr2);
+Or(a=zr1, b=zr2, out=zr3);
+Not(in=zr3, out=zr);
+}
